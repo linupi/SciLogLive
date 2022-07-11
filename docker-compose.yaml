@@ -1,0 +1,37 @@
+services:
+
+  reverse-proxy:
+    image: traefik:2.5
+    command: --api.insecure=true --providers.docker=true --entrypoints.web.address=:80
+    ports:
+      - "80:80"
+    #  - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  mongodb:
+    image: bitnami/mongodb:4.2
+
+
+  scilog-fe:
+    image: ghcr.io/paulscherrerinstitute/scilog-ci/fe:sha-3ab90efead6b99018e06a0fb25f19716bb0f57b3
+    depends_on:
+      - scilog-be
+    labels:
+      - "traefik.http.routers.catanie.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.catanie.entrypoints=web"
+    volumes:
+      - ./fe-config.json:/usr/share/nginx/html/assets/config.json     # doesn't seem to be taken into account
+      
+  scilog-be:
+    #image: ghcr.io/paulscherrerinstitute/scilog-ci/be:sha-5dbee15e3585ce633ccaf53807313b049e17bec2        # image works only with oidc in place
+    build:
+      context: https://github.com/paulscherrerinstitute/scilog.git#main:sci-log-db
+    depends_on:
+      - mongodb
+    labels:
+      - "traefik.http.routers.catamel.rule=PathPrefix(`/api`, `/auth`, `/explorer`)"
+      - "traefik.http.routers.catamel.entrypoints=web"
+    #/home/node/app/functionalAccounts.json
+    # volumes:
+    #  - ./datasource.json:/home/node/app/datasource.json   # I guess this has to be available on build time
